@@ -425,6 +425,41 @@ def test_public_html_experience_with_dates() -> None:
     assert second.date_range.end is not None and second.date_range.end.year == 1842
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Whole-field redaction.
+        ("********", None),
+        ("************ ****** ", None),
+        ("   ", None),
+        ("---", None),
+        # Partial redaction — one asterisk per hidden character.
+        ("Micro*****", None),
+        ("Gates Found****", None),
+        ("**** Foundation", None),
+        # Legitimate values must survive, including short asterisk runs used
+        # for emphasis, which are not LinkedIn's redaction marker.
+        ("Bill Gates", "Bill Gates"),
+        ("Gates Foundation", "Gates Foundation"),
+        ("Rated *** by clients", "Rated *** by clients"),
+        ("C* developer", "C* developer"),
+        ("Head of R&D, EMEA", "Head of R&D, EMEA"),
+        ("  padded  ", "padded"),
+        (None, None),
+        (123, None),
+    ],
+)
+def test_unmasked_distinguishes_redaction_from_real_values(raw, expected) -> None:
+    """The redaction filter is load-bearing, so pin it directly.
+
+    Testing it only through a fixture leaves the partial-mask branch uncovered:
+    a mutation removing it survived the higher-level test.
+    """
+    from app.linkedin.parsers.public_html import _unmasked
+
+    assert _unmasked(raw) == expected
+
+
 def test_redacted_values_become_null_never_asterisks() -> None:
     """Emitting '********' would be worse than emitting nothing.
 

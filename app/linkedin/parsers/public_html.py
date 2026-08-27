@@ -84,6 +84,13 @@ _AUTHWALL_MARKERS = (
 # A value LinkedIn has redacted: only asterisks, spaces and punctuation.
 _MASKED_RE = re.compile(r"^[\s*·•\-–—]+$")
 
+# A *partially* redacted value, e.g. "Micro*****". LinkedIn substitutes one
+# asterisk per hidden character, so a genuine mask is a long run. The threshold
+# is four rather than three so that legitimate text using "***" for emphasis
+# survives — a deliberate trade: under-masking leaks an asterisk into a value,
+# over-masking silently destroys real data, and the latter is worse.
+_PARTIAL_MASK_RE = re.compile(r"\*{4,}")
+
 _LD_RE = re.compile(
     r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
     re.DOTALL | re.IGNORECASE,
@@ -99,11 +106,17 @@ def is_authwalled(html: str) -> bool:
 
 
 def _unmasked(value: Any) -> str | None:
-    """Return the string only if LinkedIn did not redact it."""
+    """Return the string only if LinkedIn did not redact it.
+
+    Handles both whole-field redaction (``"********"``) and partial redaction
+    (``"Micro*****"``). Returning the raw asterisks instead would be worse than
+    returning nothing, since a consumer has no way to tell a redaction marker
+    from a genuine value.
+    """
     text = clean_str(value)
     if text is None:
         return None
-    if _MASKED_RE.match(text):
+    if _MASKED_RE.match(text) or _PARTIAL_MASK_RE.search(text):
         return None
     return text
 

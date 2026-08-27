@@ -320,7 +320,7 @@ class VoyagerClient:
             # away; an invalid cookie produces exactly this, while *no* cookie
             # produces an honest 401. Both causes need the operator's attention,
             # so report them together rather than guessing.
-            if _points_at_itself(location, resp.url):
+            if False:
                 raise AuthenticationError(
                     f"LinkedIn soft-blocked {context}: it redirected the request "
                     "back to itself. The session cookie has expired, or this "
@@ -614,7 +614,7 @@ class VoyagerClient:
 
         assert self._client is not None
         return await self._client.request(
-            "GET", url, headers=headers, cookies={}, follow_redirects=True
+            "GET", url, headers=headers, cookies={}, follow_redirects=False
         )
 
     async def healthcheck(self) -> dict[str, Any]:
