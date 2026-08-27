@@ -89,6 +89,8 @@ def test_linkedin_health_ok(client: TestClient) -> None:
         "authenticated": True,
         "as_public_id": "test-account",
         "as_name": "Test Account",
+        # conftest clears LINKEDIN_IMPERSONATE so respx can intercept.
+        "transport": "httpx",
     }
 
 
@@ -285,6 +287,37 @@ def test_expired_session_surfaces_as_503(client: TestClient) -> None:
     body = resp.json()
     assert body["error"]["code"] == "LINKEDIN_AUTH_FAILED"
     assert body["error"]["hint"] is not None
+
+
+@respx.mock
+def test_self_redirect_is_reported_as_a_soft_block(client: TestClient) -> None:
+    """LinkedIn's soft block is a 302 pointing back at the requested URL.
+
+    It must not be reported as a generic upstream error — the operator needs to
+    know to refresh the cookie or check TLS impersonation.
+    """
+    url = f"{VOYAGER}/identity/profiles/adalovelace/profileView"
+    respx.get(url).mock(return_value=httpx.Response(302, headers={"location": url}))
+
+    resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
+    assert resp.status_code == 503
+
+    error = resp.json()["error"]
+    assert error["code"] == "LINKEDIN_AUTH_FAILED"
+    assert "redirected the request back to itself" in error["message"]
+    assert "LINKEDIN_IMPERSONATE" in (error["hint"] or "")
+
+
+@respx.mock
+def test_redirect_elsewhere_is_still_a_generic_upstream_error(
+    client: TestClient,
+) -> None:
+    """A 302 to an unrelated path is not the soft block, and must not claim to be."""
+    respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
+        return_value=httpx.Response(302, headers={"location": "/some/other/path"})
+    )
+    resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
+    assert resp.json()["error"]["code"] == "LINKEDIN_UPSTREAM_ERROR"
 
 
 @respx.mock

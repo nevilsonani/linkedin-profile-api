@@ -448,6 +448,55 @@ criminal liability — it does not make the contractual ToS breach go away, and 
 says nothing about authenticated scraping like this, which is what a session
 cookie makes it. Not legal advice.)*
 
+### Session cookies rotate, and rotation invalidates the old value
+
+This is the single biggest operational headache, and it is worth understanding
+before you blame the code.
+
+LinkedIn reissues `li_at` periodically, and **issuing a new one invalidates the
+old one**. In testing, a cookie copied from a browser that stayed open on
+linkedin.com stopped working within about ten minutes: the browser kept
+refreshing its session, and each refresh silently retired the value this service
+was holding.
+
+Practical consequences:
+
+- **Copy the cookie from a browser you then leave alone.** Close the LinkedIn
+  tabs after copying. An actively-used browser session competes with the server.
+- **Use the cookie in one place at a time.** Running it locally *and* on a
+  deployed instance means two clients on one session, from two different IPs —
+  which is also the pattern LinkedIn's risk engine treats as suspicious.
+- **Expect to refresh it.** Treat `LINKEDIN_LI_AT` as something that expires,
+  not something you set once. `/health/linkedin` tells you when it has gone
+  stale, and the error carries a hint saying exactly what to do.
+
+The symptom is unmistakable once you know it: a `302` redirecting to the URL you
+just requested. `LINKEDIN_AUTH_FAILED` is reported for this case specifically.
+
+### LinkedIn fingerprints TLS, not just headers
+
+Cloudflare sits in front of LinkedIn and inspects the TLS handshake itself, so
+sending Chrome's `User-Agent` from a stock Python client is a contradiction it
+detects. A plain `httpx` request carrying a **valid** cookie gets soft-blocked
+with the same self-redirect described above.
+
+This is why `curl_cffi` is a hard dependency and `LINKEDIN_IMPERSONATE` defaults
+to `chrome131`. Verified experimentally: on one identical cookie, `httpx` was
+refused across every combination of HTTP/1.1, HTTP/2, cookie-jar and
+explicit-header, while `curl_cffi` impersonating Chrome was served normally.
+
+If LinkedIn advances its detection, the lever is
+`LINKEDIN_IMPERSONATE` — try `chrome124`, `chrome120`, or `safari17_0`. If none
+work, the next step up is driving a real browser (Playwright), which cannot be
+fingerprinted this way because it genuinely *is* Chrome.
+
+### Datacenter IPs are treated more harshly
+
+A deployed instance scrapes from a cloud IP, which LinkedIn scrutinises far more
+than a residential connection. Expect a hosted deployment to be blocked or
+challenged sooner than the same code running from a laptop. A residential proxy
+is the usual mitigation; this project does not include one.
+
 ### Undocumented, unstable upstream
 
 Voyager can change without warning. The architecture degrades gracefully
