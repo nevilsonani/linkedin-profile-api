@@ -1,0 +1,53 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. Render Dashboard -> New -> Blueprint -> pick the repo.
+#   3. Fill in the secrets marked `sync: false` when prompted.
+#
+# Everything marked `sync: false` is NEVER stored in the repo — Render prompts
+# for it at deploy time and keeps it in its own secret store.
+
+services:
+  - type: web
+    name: linkedin-profile-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # --- Secrets: entered in the Render dashboard, never committed ---
+      - key: LINKEDIN_LI_AT
+        sync: false
+      - key: LINKEDIN_JSESSIONID
+        sync: false
+      - key: API_KEYS
+        sync: false
+
+      # --- Non-secret configuration ---
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: CACHE_TTL_SECONDS
+        value: "900"
+      - key: CACHE_MAX_ENTRIES
+        value: "512"
+      - key: RATE_LIMIT
+        value: "30/minute"
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "25"
+      - key: MAX_RETRIES
+        value: "3"
+      - key: MIN_REQUEST_DELAY
+        value: "0.4"
+      - key: MAX_REQUEST_DELAY
+        value: "1.2"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: ENABLE_DOCS
+        value: "true"
