@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.linkedin.parsers.common import (
     parse_date,
     parse_date_range,

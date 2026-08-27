@@ -11,6 +11,7 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
+from app.linkedin.client import PUBLIC_HOSTS
 from app.main import app
 from tests import fixtures
 
@@ -24,16 +25,23 @@ def client():
         yield c
 
 
-def _block_public_hosts(public_id: str = "adalovelace") -> None:
+def _block_public_hosts(
+    public_id: str = "adalovelace", *, status: int = 999
+) -> None:
     """Make the anonymous public-page fallback fail on every host.
 
     The service tries Voyager first and falls back to the public page, so a
     test that wants to observe a *Voyager* error must close the second door
     too — otherwise the fallback quietly succeeds and the error never surfaces.
+
+    ``status`` matters. 999 is LinkedIn's throttle, which the service treats as
+    transient and reports as 429 *in preference to* the Voyager error, since a
+    retry would likely succeed. Tests that want to assert on the Voyager error
+    itself must therefore fail the public path some other way — pass 500.
     """
-    for host in ("www", "in", "uk", "ca"):
+    for host in PUBLIC_HOSTS:
         respx.get(f"https://{host}.linkedin.com/in/{public_id}").mock(
-            return_value=httpx.Response(999, text="anti-scraping")
+            return_value=httpx.Response(status, text="blocked")
         )
 
 
@@ -301,7 +309,7 @@ def test_both_paths_failing_names_both_failures(client: TestClient) -> None:
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(403, text="captcha-internal")
     )
-    for host in ("www", "in", "uk", "ca"):
+    for host in PUBLIC_HOSTS:
         respx.get(f"https://{host}.linkedin.com/in/adalovelace").mock(
             return_value=httpx.Response(
                 200, text="<html>authwall Join LinkedIn to view</html>"
@@ -338,7 +346,7 @@ def test_not_found(client: TestClient) -> None:
 
 @respx.mock
 def test_expired_session_surfaces_as_503(client: TestClient) -> None:
-    _block_public_hosts()
+    _block_public_hosts(status=500)
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(302, headers={"location": "/uas/login"})
     )
@@ -357,7 +365,7 @@ def test_self_redirect_is_reported_as_a_soft_block(client: TestClient) -> None:
     know to refresh the cookie or check TLS impersonation.
     """
     url = f"{VOYAGER}/identity/profiles/adalovelace/profileView"
-    _block_public_hosts()
+    _block_public_hosts(status=500)
     respx.get(url).mock(return_value=httpx.Response(302, headers={"location": url}))
 
     resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
@@ -374,7 +382,7 @@ def test_redirect_elsewhere_is_still_a_generic_upstream_error(
     client: TestClient,
 ) -> None:
     """A 302 to an unrelated path is not the soft block, and must not claim to be."""
-    _block_public_hosts()
+    _block_public_hosts(status=500)
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(302, headers={"location": "/some/other/path"})
     )
