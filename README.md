@@ -85,26 +85,73 @@ that the real front-end sends. See [`app/linkedin/client.py`](app/linkedin/clien
 
 ### Which endpoints, and why
 
-The workhorse is **`/identity/profiles/{id}/profileView`**. It returns the entire
-profile inlined in one document — header block plus `positionView`,
-`educationView`, `skillView`, `certificationView`, `languageView`, `projectView`,
-`publicationView`, `honorView`, `volunteerExperienceView`, `courseView`,
-`patentView`, `testScoreView`. One round trip covers roughly 95% of the profile.
+Historically the workhorse was **`/identity/profiles/{id}/profileView`**, which
+returned an entire profile inlined in one document, plus four smaller calls for
+contact info, network stats, the full skill list, and badges.
 
-Four smaller calls fill the gaps, fired **concurrently** after `profileView`
-returns:
+**LinkedIn has since retired that surface.** Probing it with a valid,
+authenticated session in August 2026 gives:
 
-| Endpoint | Adds |
+| Endpoint | Status |
 |---|---|
-| `/profileContactInfo` | email, phone, websites, Twitter, birthday |
-| `/networkinfo` | follower count, connection count, degree of separation |
-| `/skills?count=100` | the full skill list (`profileView` truncates it) |
-| `/identity/dash/profiles` | premium / influencer / open-to-work badges |
+| `/identity/profiles/{id}/profileView` | **410 Gone** |
+| `/identity/profiles/{id}` | **410 Gone** |
+| `/identity/profiles/{id}/skills` | **410 Gone** |
+| `/identity/profiles/{id}/profileContactInfo` | **410 Gone** |
+| `/identity/profiles/{id}/networkinfo` | **410 Gone** |
+| `/identity/dash/profiles?q=memberIdentity` | 200 |
+| `/me` | 200 |
 
-Only `profileView` is required. **Every other call is allowed to fail** — a
-403 on contact info just means that person hides their email, which is normal
-and shouldn't fail the request. Failures land in `meta.endpoints_failed` and
-`meta.warnings` instead.
+`410` is deliberate: LinkedIn is saying *permanently removed*, not *forbidden*.
+The Voyager code path is retained because it still works where endpoints
+survive and yields far richer data, but it can no longer be the only path.
+
+### Two paths, because one is not dependable
+
+The service therefore tries two extraction strategies in order, and a request
+fails only when **both** do.
+
+**1. Voyager (authenticated).** Richer — skills, certifications, contact
+details, full role descriptions. But it needs a `li_at` cookie that LinkedIn
+rotates aggressively (see [Known limitations](#known-limitations)), and much of
+it now answers 410.
+
+**2. The public page (anonymous).** LinkedIn serves an SEO render of public
+profiles to logged-out clients, carrying a `schema.org/Person` graph in
+`<script type="application/ld+json">`. It yields less, but it takes **no
+session cookie at all** — so there is nothing to expire. This is the dependable
+floor that keeps the API answering when the cookie inevitably goes stale.
+
+Within the Voyager path, only the profile document is required. **Every
+enrichment call is allowed to fail** — a 403 on contact info just means that
+person hides their email, which is normal and shouldn't fail the request.
+Failures land in `meta.endpoints_failed` and `meta.warnings` instead.
+
+`meta.source` always reports which path produced the payload.
+
+### Anonymous requests are rate-limited per hostname
+
+LinkedIn answers `999` — its own anti-scraping status — on one hostname while
+serving the identical profile from another. `satyanadella` was observed
+returning 999 from `www.linkedin.com` and 200 from `in.linkedin.com` seconds
+apart. The client therefore rotates through `www`, `in`, `uk`, and `ca` before
+giving up. A `404`, by contrast, is authoritative and stops the search
+immediately.
+
+### Redaction is not absence
+
+LinkedIn withholds parts of the public JSON-LD from anonymous viewers by
+replacing the characters with asterisks:
+
+```json
+"jobTitle": ["********", "*******"],
+"worksFor": [{ "name": "************ ****** " }]
+```
+
+Emitting those verbatim would be worse than emitting nothing, because a
+consumer cannot tell `"********"` from a real job title. Masked values are
+returned as `null` and a warning records how many fields were withheld — so
+"LinkedIn hid this" stays distinguishable from "this person has none".
 
 ### Two response encodings
 

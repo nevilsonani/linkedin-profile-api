@@ -1,517 +1,155 @@
 {
-  "success": true,
-  "data": {
-    "public_id": "adalovelace",
-    "profile_url": "https://www.linkedin.com/in/adalovelace",
-    "urn": "urn:li:fs_profile:ACoAAABCDEFGHIJKLMNOP",
-    "member_id": "ACoAAABCDEFGHIJKLMNOP",
-    "first_name": "Ada",
-    "last_name": "Lovelace",
-    "full_name": "Ada Lovelace",
-    "maiden_name": null,
-    "headline": "Mathematician | First Computer Programmer",
-    "about": "I write algorithms for the Analytical Engine.\n\nInterested in poetical science.",
-    "industry": "Computer Software",
-    "location": {
-      "text": "London, England, United Kingdom",
-      "city": "London",
-      "country": "United Kingdom",
-      "country_code": "gb",
-      "postal_code": "EC1A"
-    },
-    "is_student": false,
-    "is_influencer": true,
-    "is_premium": true,
-    "is_open_to_work": true,
-    "is_hiring": null,
-    "profile_picture": {
-      "url": "https://media.licdn.com/dms/image/C4E03AQExample/profile-displayphoto-shrink_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-      "width": 400,
-      "height": 400,
-      "variants": [
-        {
-          "url": "https://media.licdn.com/dms/image/C4E03AQExample/profile-displayphoto-shrink_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-          "width": 400,
-          "height": 400
+    "success": true,
+    "data": {
+        "public_id": "williamhgates",
+        "profile_url": "https://www.linkedin.com/in/williamhgates",
+        "urn": null,
+        "member_id": null,
+        "first_name": "Bill",
+        "last_name": "Gates",
+        "full_name": "Bill Gates",
+        "maiden_name": null,
+        "headline": "Chair of the Gates Foundation. Founder of Breakthrough Energy. Co-founder of Microsoft…",
+        "about": "Chair of the Gates Foundation. Founder of Breakthrough Energy. Co-founder of Microsoft…",
+        "industry": null,
+        "location": {
+            "text": "Seattle, Washington, United States",
+            "city": "Seattle",
+            "country": "United States",
+            "country_code": "us",
+            "postal_code": null
         },
-        {
-          "url": "https://media.licdn.com/dms/image/C4E03AQExample/profile-displayphoto-shrink_200_200/0/1234567890?e=1700000000&v=beta&t=ghi",
-          "width": 200,
-          "height": 200
-        },
-        {
-          "url": "https://media.licdn.com/dms/image/C4E03AQExample/profile-displayphoto-shrink_100_100/0/1234567890?e=1700000000&v=beta&t=abc",
-          "width": 100,
-          "height": 100
-        }
-      ],
-      "expires_at": "2023-11-14T22:13:20Z"
-    },
-    "background_image": {
-      "url": "https://media.licdn.com/dms/image/C4E16AQBg/profile-displaybackgroundimage-shrink_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-      "width": 400,
-      "height": 400,
-      "variants": [
-        {
-          "url": "https://media.licdn.com/dms/image/C4E16AQBg/profile-displaybackgroundimage-shrink_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-          "width": 400,
-          "height": 400
-        },
-        {
-          "url": "https://media.licdn.com/dms/image/C4E16AQBg/profile-displaybackgroundimage-shrink_200_200/0/1234567890?e=1700000000&v=beta&t=ghi",
-          "width": 200,
-          "height": 200
-        },
-        {
-          "url": "https://media.licdn.com/dms/image/C4E16AQBg/profile-displaybackgroundimage-shrink_100_100/0/1234567890?e=1700000000&v=beta&t=abc",
-          "width": 100,
-          "height": 100
-        }
-      ],
-      "expires_at": "2023-11-14T22:13:20Z"
-    },
-    "experience": [
-      {
-        "title": "Principal Analyst",
-        "company": {
-          "name": "Analytical Engine Project",
-          "urn": "urn:li:fs_miniCompany:999",
-          "linkedin_url": "https://www.linkedin.com/company/analytical-engine",
-          "universal_name": "analytical-engine",
-          "logo": {
-            "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-            "width": 400,
-            "height": 400,
+        "is_student": null,
+        "is_influencer": true,
+        "is_premium": null,
+        "is_open_to_work": null,
+        "is_hiring": null,
+        "profile_picture": {
+            "url": "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_200_200/B56ZRi8g.aGsAY-/0/1736826818802?e=2147483647&v=beta&t=bKWfN6UwwtiCqFWsG7rBELbd48qJOAMLdxhBzzkJV0k",
+            "width": 200,
+            "height": 200,
             "variants": [
-              {
-                "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-                "width": 400,
-                "height": 400
-              },
-              {
-                "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_200_200/0/1234567890?e=1700000000&v=beta&t=ghi",
-                "width": 200,
-                "height": 200
-              },
-              {
-                "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_100_100/0/1234567890?e=1700000000&v=beta&t=abc",
-                "width": 100,
-                "height": 100
-              }
+                {
+                    "url": "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_200_200/B56ZRi8g.aGsAY-/0/1736826818802?e=2147483647&v=beta&t=bKWfN6UwwtiCqFWsG7rBELbd48qJOAMLdxhBzzkJV0k",
+                    "width": 200,
+                    "height": 200
+                }
             ],
-            "expires_at": "2023-11-14T22:13:20Z"
-          },
-          "industries": [
-            "Research"
-          ],
-          "employee_count_range": "2-10",
-          "staffing_company": null
+            "expires_at": null
         },
-        "company_name": "Analytical Engine Project",
-        "employment_type": "Full-time",
-        "location": "London, United Kingdom",
-        "description": "Wrote the first published algorithm intended for machine execution.",
-        "date_range": {
-          "start": {
-            "year": 1842,
-            "month": 6,
-            "day": null,
-            "text": "Jun 1842"
-          },
-          "end": null,
-          "is_current": true,
-          "duration_months": 2211,
-          "text": "Jun 1842 - Present"
+        "background_image": null,
+        "experience": [
+            {
+                "title": null,
+                "company": {
+                    "name": "Gates Foundation",
+                    "urn": null,
+                    "linkedin_url": "https://www.linkedin.com/company/gates-foundation",
+                    "universal_name": "gates-foundation",
+                    "logo": null,
+                    "industries": [],
+                    "employee_count_range": null,
+                    "staffing_company": null
+                },
+                "company_name": "Gates Foundation",
+                "employment_type": null,
+                "location": null,
+                "description": null,
+                "date_range": null,
+                "urn": null,
+                "skills": []
+            }
+        ],
+        "experience_grouped": [],
+        "education": [
+            {
+                "school_name": "Harvard University",
+                "school": {
+                    "name": "Harvard University",
+                    "urn": null,
+                    "linkedin_url": "https://www.linkedin.com/school/harvard-university/",
+                    "logo": null
+                },
+                "degree_name": null,
+                "field_of_study": null,
+                "grade": null,
+                "activities": null,
+                "description": null,
+                "date_range": {
+                    "start": {
+                        "year": 1973,
+                        "month": null,
+                        "day": null,
+                        "text": "1973"
+                    },
+                    "end": {
+                        "year": 1975,
+                        "month": null,
+                        "day": null,
+                        "text": "1975"
+                    },
+                    "is_current": false,
+                    "duration_months": 25,
+                    "text": "1973 - 1975"
+                },
+                "urn": null
+            }
+        ],
+        "skills": [],
+        "certifications": [],
+        "languages": [],
+        "projects": [],
+        "publications": [],
+        "honors": [],
+        "volunteer_experience": [],
+        "courses": [],
+        "patents": [],
+        "test_scores": [],
+        "organizations": [],
+        "contact_info": null,
+        "network_info": {
+            "followers_count": 40594874,
+            "connections_count": null,
+            "connection_distance": null
         },
-        "urn": "urn:li:fs_position:(ACoAAABCDEFGHIJKLMNOP,1)",
-        "skills": []
-      },
-      {
-        "title": "Translator",
-        "company": {
-          "name": "Independent",
-          "urn": null,
-          "linkedin_url": null,
-          "universal_name": null,
-          "logo": null,
-          "industries": [],
-          "employee_count_range": null,
-          "staffing_company": null
-        },
-        "company_name": "Independent",
-        "employment_type": null,
-        "location": null,
-        "description": null,
-        "date_range": {
-          "start": {
-            "year": 1840,
-            "month": 1,
-            "day": null,
-            "text": "Jan 1840"
-          },
-          "end": {
-            "year": 1842,
-            "month": 5,
-            "day": null,
-            "text": "May 1842"
-          },
-          "is_current": false,
-          "duration_months": 29,
-          "text": "Jan 1840 - May 1842"
-        },
-        "urn": "urn:li:fs_position:(ACoAAABCDEFGHIJKLMNOP,2)",
-        "skills": []
-      }
-    ],
-    "experience_grouped": [
-      {
-        "company_name": "Analytical Engine Project",
-        "company": {
-          "name": "Analytical Engine Project",
-          "urn": null,
-          "linkedin_url": null,
-          "universal_name": null,
-          "logo": null,
-          "industries": [],
-          "employee_count_range": null,
-          "staffing_company": null
-        },
-        "date_range": {
-          "start": {
-            "year": 1842,
-            "month": 6,
-            "day": null,
-            "text": "Jun 1842"
-          },
-          "end": null,
-          "is_current": true,
-          "duration_months": 2211,
-          "text": "Jun 1842 - Present"
-        },
-        "positions": [
-          {
-            "title": "Principal Analyst",
+        "current_position": {
+            "title": null,
             "company": {
-              "name": "Analytical Engine Project",
-              "urn": null,
-              "linkedin_url": null,
-              "universal_name": null,
-              "logo": null,
-              "industries": [],
-              "employee_count_range": null,
-              "staffing_company": null
+                "name": "Gates Foundation",
+                "urn": null,
+                "linkedin_url": "https://www.linkedin.com/company/gates-foundation",
+                "universal_name": "gates-foundation",
+                "logo": null,
+                "industries": [],
+                "employee_count_range": null,
+                "staffing_company": null
             },
-            "company_name": "Analytical Engine Project",
+            "company_name": "Gates Foundation",
             "employment_type": null,
             "location": null,
             "description": null,
-            "date_range": {
-              "start": {
-                "year": 1842,
-                "month": 6,
-                "day": null,
-                "text": "Jun 1842"
-              },
-              "end": null,
-              "is_current": true,
-              "duration_months": 2211,
-              "text": "Jun 1842 - Present"
-            },
+            "date_range": null,
             "urn": null,
             "skills": []
-          }
-        ]
-      }
-    ],
-    "education": [
-      {
-        "school_name": "Private Tutelage",
-        "school": {
-          "name": "Private Tutelage",
-          "urn": "urn:li:fs_miniSchool:1",
-          "linkedin_url": null,
-          "logo": null
         },
-        "degree_name": "Mathematics",
-        "field_of_study": "Mathematics and Logic",
-        "grade": "Distinction",
-        "activities": "Correspondence with Charles Babbage",
-        "description": null,
-        "date_range": {
-          "start": {
-            "year": 1832,
-            "month": null,
-            "day": null,
-            "text": "1832"
-          },
-          "end": {
-            "year": 1840,
-            "month": null,
-            "day": null,
-            "text": "1840"
-          },
-          "is_current": false,
-          "duration_months": 97,
-          "text": "1832 - 1840"
-        },
-        "urn": "urn:li:fs_education:(ACoAAABCDEFGHIJKLMNOP,1)"
-      }
-    ],
-    "skills": [
-      {
-        "name": "Algorithms",
-        "endorsement_count": 99
-      },
-      {
-        "name": "Mathematics",
-        "endorsement_count": 87
-      },
-      {
-        "name": "Technical Writing",
-        "endorsement_count": 12
-      }
-    ],
-    "certifications": [
-      {
-        "name": "Certified Analytical Engine Operator",
-        "authority": "Royal Society",
-        "company": {
-          "name": "Royal Society",
-          "urn": null,
-          "linkedin_url": null,
-          "universal_name": null,
-          "logo": null,
-          "industries": [],
-          "employee_count_range": null,
-          "staffing_company": null
-        },
-        "license_number": "RS-1843",
-        "url": "https://example.org/cert/1843",
-        "date_range": {
-          "start": {
-            "year": 1843,
-            "month": 9,
-            "day": null,
-            "text": "Sep 1843"
-          },
-          "end": null,
-          "is_current": true,
-          "duration_months": 2196,
-          "text": "Sep 1843 - Present"
-        },
-        "urn": null
-      }
-    ],
-    "languages": [
-      {
-        "name": "English",
-        "proficiency": "Native or bilingual proficiency",
-        "proficiency_code": "NATIVE_OR_BILINGUAL"
-      },
-      {
-        "name": "French",
-        "proficiency": "Professional working proficiency",
-        "proficiency_code": "PROFESSIONAL_WORKING"
-      },
-      {
-        "name": "Italian",
-        "proficiency": null,
-        "proficiency_code": null
-      }
-    ],
-    "projects": [
-      {
-        "title": "Note G",
-        "description": "Algorithm for computing Bernoulli numbers.",
-        "url": "https://example.org/note-g",
-        "date_range": {
-          "start": {
-            "year": 1843,
-            "month": null,
-            "day": null,
-            "text": "1843"
-          },
-          "end": null,
-          "is_current": true,
-          "duration_months": 2204,
-          "text": "1843 - Present"
-        },
-        "members": [
-          "Charles Babbage"
-        ]
-      }
-    ],
-    "publications": [
-      {
-        "name": "Sketch of the Analytical Engine",
-        "publisher": "Taylor's Scientific Memoirs",
-        "description": null,
-        "url": null,
-        "date": {
-          "year": 1843,
-          "month": null,
-          "day": null,
-          "text": "1843"
-        },
-        "authors": [
-          "Ada Lovelace"
-        ]
-      }
-    ],
-    "honors": [
-      {
-        "title": "Ada Lovelace Day namesake",
-        "issuer": "Historical Recognition",
-        "description": null,
-        "date": {
-          "year": 2009,
-          "month": null,
-          "day": null,
-          "text": "2009"
-        }
-      }
-    ],
-    "volunteer_experience": [
-      {
-        "role": "Mentor",
-        "organization": "Royal Institution",
-        "company": {
-          "name": "Royal Institution",
-          "urn": null,
-          "linkedin_url": null,
-          "universal_name": null,
-          "logo": null,
-          "industries": [],
-          "employee_count_range": null,
-          "staffing_company": null
-        },
-        "cause": "Science And Technology",
-        "description": null,
-        "date_range": {
-          "start": {
-            "year": 1841,
-            "month": null,
-            "day": null,
-            "text": "1841"
-          },
-          "end": null,
-          "is_current": true,
-          "duration_months": 2228,
-          "text": "1841 - Present"
-        }
-      }
-    ],
-    "courses": [
-      {
-        "name": "Advanced Calculus",
-        "number": "MATH-401"
-      }
-    ],
-    "patents": [],
-    "test_scores": [],
-    "organizations": [],
-    "contact_info": {
-      "email": "ada@example.org",
-      "phone_numbers": [
-        {
-          "number": "+44 20 7946 0000",
-          "type": "MOBILE"
-        }
-      ],
-      "twitter_handles": [
-        "adalovelace"
-      ],
-      "websites": [
-        {
-          "url": "https://example.org",
-          "category": "Personal",
-          "label": null
-        }
-      ],
-      "address": "London, England",
-      "birthday": {
-        "year": null,
-        "month": 12,
-        "day": 10,
-        "text": "Dec 10"
-      },
-      "instant_messengers": []
+        "total_experience_months": null
     },
-    "network_info": {
-      "followers_count": 12345,
-      "connections_count": 500,
-      "connection_distance": "DISTANCE_2"
-    },
-    "current_position": {
-      "title": "Principal Analyst",
-      "company": {
-        "name": "Analytical Engine Project",
-        "urn": "urn:li:fs_miniCompany:999",
-        "linkedin_url": "https://www.linkedin.com/company/analytical-engine",
-        "universal_name": "analytical-engine",
-        "logo": {
-          "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-          "width": 400,
-          "height": 400,
-          "variants": [
-            {
-              "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_400_400/0/1234567890?e=1700000000&v=beta&t=def",
-              "width": 400,
-              "height": 400
-            },
-            {
-              "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_200_200/0/1234567890?e=1700000000&v=beta&t=ghi",
-              "width": 200,
-              "height": 200
-            },
-            {
-              "url": "https://media.licdn.com/dms/image/C4E0BAQ/company-logo_100_100/0/1234567890?e=1700000000&v=beta&t=abc",
-              "width": 100,
-              "height": 100
-            }
-          ],
-          "expires_at": "2023-11-14T22:13:20Z"
-        },
-        "industries": [
-          "Research"
+    "meta": {
+        "source": "public_html",
+        "fetched_at": "2026-08-27T06:30:07.284013Z",
+        "duration_ms": 2424,
+        "cached": false,
+        "endpoints_succeeded": [
+            "publicHtml"
         ],
-        "employee_count_range": "2-10",
-        "staffing_company": null
-      },
-      "company_name": "Analytical Engine Project",
-      "employment_type": "Full-time",
-      "location": "London, United Kingdom",
-      "description": "Wrote the first published algorithm intended for machine execution.",
-      "date_range": {
-        "start": {
-          "year": 1842,
-          "month": 6,
-          "day": null,
-          "text": "Jun 1842"
-        },
-        "end": null,
-        "is_current": true,
-        "duration_months": 2211,
-        "text": "Jun 1842 - Present"
-      },
-      "urn": "urn:li:fs_position:(ACoAAABCDEFGHIJKLMNOP,1)",
-      "skills": []
-    },
-    "total_experience_months": 2240
-  },
-  "meta": {
-    "source": "voyager",
-    "fetched_at": "2026-08-27T05:30:00Z",
-    "duration_ms": 1840,
-    "cached": false,
-    "endpoints_succeeded": [
-      "profileView",
-      "contactInfo",
-      "networkInfo",
-      "skills",
-      "dashProfile"
-    ],
-    "endpoints_failed": [],
-    "warnings": []
-  }
+        "endpoints_failed": [
+            "voyager"
+        ],
+        "warnings": [
+            "The authenticated Voyager API was unavailable (LINKEDIN_AUTH_FAILED), so the public page was used instead; it exposes fewer fields.",
+            "LinkedIn redacted 3 job title(s) on the public page; they are returned as null rather than as asterisks.",
+            "LinkedIn redacted 2 employer name(s) on the public page.",
+            "Extracted from LinkedIn's public page. Skills, certifications, contact details and full role descriptions are only exposed to an authenticated session and are therefore unavailable here."
+        ]
+    }
 }
