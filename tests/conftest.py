@@ -18,6 +18,9 @@ os.environ.setdefault("MIN_REQUEST_DELAY", "0")
 os.environ.setdefault("MAX_REQUEST_DELAY", "0")
 os.environ.setdefault("MAX_RETRIES", "1")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
+# Force the httpx transport: respx can only intercept httpx, and the tests are
+# about our own logic, not about defeating Cloudflare's TLS fingerprinting.
+os.environ.setdefault("LINKEDIN_IMPERSONATE", "")
 
 import pytest  # noqa: E402
 

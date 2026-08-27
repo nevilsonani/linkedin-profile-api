@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     max_request_delay: float = 1.2
     user_agent: str = ""
 
+    # Browser profile whose TLS/HTTP2 fingerprint we present to LinkedIn.
+    # LinkedIn fingerprints the TLS handshake, not just headers: a stock Python
+    # client is rejected with a 302 redirect loop even holding a valid session
+    # cookie. Set to "" to disable impersonation and use plain httpx (which the
+    # test suite does, so it can intercept traffic with respx).
+    linkedin_impersonate: str = "chrome131"
+
     # --- App --------------------------------------------------------------
     log_level: str = "INFO"
     enable_docs: bool = True
@@ -78,6 +85,11 @@ class Settings(BaseSettings):
     @property
     def has_linkedin_session(self) -> bool:
         return bool(self.linkedin_li_at)
+
+    @property
+    def impersonation_target(self) -> str | None:
+        """Browser to impersonate, or None to use plain httpx."""
+        return self.linkedin_impersonate.strip() or None
 
     @property
     def auth_required(self) -> bool:

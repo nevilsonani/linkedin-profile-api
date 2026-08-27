@@ -21,6 +21,30 @@ Two response encodings are available via the ``Accept`` header:
 
 We ask for the inlined tree on ``profileView`` (one call, everything embedded)
 and fall back to the normalised form only where an endpoint requires it.
+
+TLS fingerprinting
+------------------
+Getting those three things right is *not* sufficient. LinkedIn sits behind
+Cloudflare, which fingerprints the TLS handshake itself (JA3) — not merely the
+``User-Agent`` header. A stock Python HTTP client announces a cipher suite and
+extension ordering that no real Chrome ever sends, so claiming to be Chrome in
+a header while handshaking like Python is a contradiction their edge detects.
+
+The observed symptom is specific and easy to misdiagnose: a request carrying a
+**valid** session cookie gets ``302`` redirecting to *the URL it just asked
+for*, forever. It looks like a redirect bug. It is a soft block. The tell is
+that an invalid cookie produces the identical 302, while sending no cookie at
+all produces an honest ``401`` — so the 302 means "recognised, refused". This
+was verified experimentally: on one identical cookie, ``httpx`` got 302 on
+every combination of HTTP/1.1, HTTP/2, cookie-jar and explicit-header, while
+``curl_cffi`` impersonating Chrome got ``200``.
+
+So the transport is swappable:
+
+* ``curl_cffi`` with ``impersonate="chrome131"`` replicates Chrome's TLS
+  fingerprint and is used whenever ``LINKEDIN_IMPERSONATE`` is set (default).
+* Plain ``httpx`` is used when it is empty — which the test suite does, since
+  ``respx`` can only intercept httpx.
 """
 
 from __future__ import annotations
@@ -29,6 +53,7 @@ import asyncio
 import random
 from types import TracebackType
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from tenacity import (
@@ -38,6 +63,16 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential_jitter,
 )
+
+try:  # optional: the service degrades to plain httpx without it
+    from curl_cffi.requests import AsyncSession as _ImpersonatingSession
+    from curl_cffi.requests import RequestsError as _ImpersonatingError
+
+    IMPERSONATION_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised only on installs without it
+    _ImpersonatingSession = None  # type: ignore[assignment]
+    _ImpersonatingError = ()  # type: ignore[assignment]
+    IMPERSONATION_AVAILABLE = False
 
 from app.config import Settings
 from app.linkedin.exceptions import (
@@ -70,18 +105,44 @@ class _TransientUpstream(Exception):
     """Internal marker so tenacity retries only what is worth retrying."""
 
 
+def _points_at_itself(location: str, request_url: Any) -> bool:
+    """True when a redirect sends us back to the path we just requested.
+
+    LinkedIn's soft block manifests as exactly this, so it needs distinguishing
+    from a genuine redirect to /login or /checkpoint.
+    """
+    if not location:
+        return False
+    return (
+        urlsplit(location).path.rstrip("/")
+        == urlsplit(str(request_url)).path.rstrip("/")
+    )
+
+
 class VoyagerClient:
     """Async client holding one authenticated LinkedIn session.
 
-    Instantiated once at application startup and shared across requests; httpx
-    handles connection pooling, so concurrent scrapes reuse the same TLS
-    connections rather than renegotiating per call.
+    Instantiated once at application startup and shared across requests, so
+    concurrent scrapes reuse pooled connections rather than renegotiating TLS
+    per call.
+
+    Two transports are supported; see the module docstring for why. Both expose
+    ``status_code`` / ``headers`` / ``text`` / ``json()``, so everything above
+    :meth:`_request` is transport-agnostic.
     """
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._client: httpx.AsyncClient | None = None
+        self._impersonator: Any | None = None
         self._lock = asyncio.Lock()
+
+    @property
+    def transport_name(self) -> str:
+        """Which transport is live — surfaced in logs and the health endpoint."""
+        if self._impersonator is not None:
+            return f"curl_cffi[{self._settings.impersonation_target}]"
+        return "httpx"
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -98,11 +159,29 @@ class VoyagerClient:
         await self.aclose()
 
     async def start(self) -> None:
-        if self._client is not None:
+        if self._client is not None or self._impersonator is not None:
             return
         async with self._lock:
-            if self._client is not None:  # re-check after acquiring
+            if self._client is not None or self._impersonator is not None:
+                return  # re-check after acquiring
+
+            target = self._settings.impersonation_target
+
+            if target and IMPERSONATION_AVAILABLE:
+                self._impersonator = _ImpersonatingSession(max_clients=20)
+                log.info("transport_selected", transport="curl_cffi", impersonate=target)
                 return
+
+            if target and not IMPERSONATION_AVAILABLE:
+                log.warning(
+                    "impersonation_unavailable",
+                    message=(
+                        "LINKEDIN_IMPERSONATE is set but curl_cffi is not installed. "
+                        "Falling back to httpx, which LinkedIn will very likely "
+                        "block with a 302 redirect loop. Run: pip install curl_cffi"
+                    ),
+                )
+
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self._settings.request_timeout_seconds),
                 follow_redirects=False,  # a 302 to /login is signal, not noise
@@ -110,11 +189,15 @@ class VoyagerClient:
                 cookies=self._build_cookies(),
                 limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
             )
+            log.info("transport_selected", transport="httpx")
 
     async def aclose(self) -> None:
         if self._client is not None:
             await self._client.aclose()
             self._client = None
+        if self._impersonator is not None:
+            await self._impersonator.close()
+            self._impersonator = None
 
     # -- session -----------------------------------------------------------
 
@@ -187,16 +270,35 @@ class VoyagerClient:
         if hi > 0:
             await asyncio.sleep(random.uniform(lo, max(lo, hi)))
 
-    def _raise_for_status(self, resp: httpx.Response, *, context: str) -> None:
+    def _cookie_header(self) -> str:
+        """Build the Cookie header manually.
+
+        curl_cffi has its own jar, but constructing the header explicitly keeps
+        both transports byte-identical and makes the JSESSIONID quoting — which
+        LinkedIn is picky about — visible in one place.
+        """
+        s = self._settings
+        parts = []
+        if s.linkedin_li_at:
+            parts.append(f"li_at={s.linkedin_li_at}")
+        if s.linkedin_jsessionid:
+            # LinkedIn itself stores this quoted; send it back the same way.
+            parts.append(f'JSESSIONID="{s.linkedin_jsessionid}"')
+        if s.linkedin_bcookie:
+            parts.append(f"bcookie={s.linkedin_bcookie}")
+        if s.linkedin_lidc:
+            parts.append(f"lidc={s.linkedin_lidc}")
+        return "; ".join(parts)
+
+    def _raise_for_status(self, resp: Any, *, context: str) -> None:
         status = resp.status_code
 
         if status < 300:
             return
 
-        # A redirect toward /login or /checkpoint means the session is dead or
-        # challenged — httpx won't follow it because follow_redirects=False.
+        # Redirects are never followed, so a 3xx here is always signal.
         if status in (301, 302, 303, 307, 308):
-            location = resp.headers.get("location", "")
+            location = resp.headers.get("location", "") or ""
             if "checkpoint" in location or "challenge" in location:
                 raise ChallengeError(
                     f"LinkedIn redirected {context} to a security checkpoint."
@@ -205,6 +307,23 @@ class VoyagerClient:
                 raise AuthenticationError(
                     f"LinkedIn redirected {context} to the login page; "
                     "the session cookie is no longer valid."
+                )
+            # A 302 pointing back at the same URL is LinkedIn's soft block. It
+            # means either the cookie is dead or the TLS fingerprint gave us
+            # away; an invalid cookie produces exactly this, while *no* cookie
+            # produces an honest 401. Both causes need the operator's attention,
+            # so report them together rather than guessing.
+            if _points_at_itself(location, resp.url):
+                raise AuthenticationError(
+                    f"LinkedIn soft-blocked {context}: it redirected the request "
+                    "back to itself. The session cookie has expired, or this "
+                    "client's TLS fingerprint was rejected.",
+                    hint=(
+                        "First refresh LINKEDIN_LI_AT — LinkedIn rotates it "
+                        "periodically. If a freshly-copied cookie still fails, "
+                        "confirm LINKEDIN_IMPERSONATE is set and curl_cffi is "
+                        "installed; plain HTTP clients are blocked here."
+                    ),
                 )
             raise UpstreamError(
                 f"Unexpected redirect from {context}: {status} -> {location or '?'}"
@@ -237,6 +356,29 @@ class VoyagerClient:
 
         raise UpstreamError(f"{context} returned unexpected HTTP {status}.")
 
+    async def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        params: dict[str, Any] | None,
+    ) -> Any:
+        """Issue one request on whichever transport is active."""
+        if self._impersonator is not None:
+            return await self._impersonator.request(
+                method,
+                url,
+                headers={**headers, "cookie": self._cookie_header()},
+                params=params,
+                impersonate=self._settings.impersonation_target,
+                timeout=self._settings.request_timeout_seconds,
+                allow_redirects=False,
+            )
+
+        assert self._client is not None
+        return await self._client.request(method, url, headers=headers, params=params)
+
     async def _request(
         self,
         method: str,
@@ -245,15 +387,21 @@ class VoyagerClient:
         context: str,
         headers: dict[str, str],
         params: dict[str, Any] | None = None,
-    ) -> httpx.Response:
-        if self._client is None:
+    ) -> Any:
+        if self._client is None and self._impersonator is None:
             await self.start()
-        assert self._client is not None
 
-        async def _once() -> httpx.Response:
-            resp = await self._client.request(  # type: ignore[union-attr]
-                method, url, headers=headers, params=params
-            )
+        # Network-level failures worth retrying, from whichever transport.
+        transient: tuple[type[BaseException], ...] = (
+            _TransientUpstream,
+            httpx.TransportError,
+            httpx.TimeoutException,
+        )
+        if IMPERSONATION_AVAILABLE:
+            transient = (*transient, _ImpersonatingError)
+
+        async def _once() -> Any:
+            resp = await self._send(method, url, headers=headers, params=params)
             self._raise_for_status(resp, context=context)
             return resp
 
@@ -261,9 +409,7 @@ class VoyagerClient:
             async for attempt in AsyncRetrying(
                 stop=stop_after_attempt(max(1, self._settings.max_retries)),
                 wait=wait_exponential_jitter(initial=1, max=8),
-                retry=retry_if_exception_type(
-                    (_TransientUpstream, httpx.TransportError, httpx.TimeoutException)
-                ),
+                retry=retry_if_exception_type(transient),
                 reraise=True,
             ):
                 with attempt:
@@ -276,6 +422,10 @@ class VoyagerClient:
             raise UpstreamError(f"Network error calling {context}: {exc}") from exc
         except RetryError as exc:  # pragma: no cover - reraise=True precludes this
             raise UpstreamError(f"Gave up calling {context}.") from exc
+        except Exception as exc:  # noqa: BLE001 - curl_cffi's own transport errors
+            if IMPERSONATION_AVAILABLE and isinstance(exc, _ImpersonatingError):
+                raise UpstreamError(f"Network error calling {context}: {exc}") from exc
+            raise
 
         raise UpstreamError(f"Unreachable retry state for {context}.")  # pragma: no cover
 
@@ -403,4 +553,5 @@ class VoyagerClient:
                 p for p in (mini.get("firstName"), mini.get("lastName")) if p
             )
             or None,
+            "transport": self.transport_name,
         }
