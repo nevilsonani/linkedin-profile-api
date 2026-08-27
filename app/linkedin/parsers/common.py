@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.models.profile import (
@@ -60,7 +60,7 @@ def unwrap_union(value: Any) -> Any:
     """
     if isinstance(value, dict) and len(value) == 1:
         (key, inner), = value.items()
-        if key.startswith("com.linkedin.") and isinstance(inner, (dict, list)):
+        if key.startswith("com.linkedin.") and isinstance(inner, dict | list):
             return inner
     return value
 
@@ -152,7 +152,7 @@ def _duration_months(start: DateParts | None, end: DateParts | None) -> int | No
         if end_idx is None:
             return None
     else:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end_idx = now.year * 12 + (now.month - 1)
 
     # LinkedIn counts both endpoints, so Jan->Jan of the same year is 1 month.
@@ -171,7 +171,7 @@ def month_span(range_: DateRange | None) -> tuple[int, int] | None:
         if end_idx is None:
             return None
     else:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end_idx = now.year * 12 + (now.month - 1)
     if end_idx < start_idx:
         return None
@@ -254,7 +254,7 @@ def parse_image(raw: Any) -> Image | None:
         raw_expiry = artifact.get("expiresAt")
         if isinstance(raw_expiry, int) and raw_expiry > 0:
             # Milliseconds since epoch.
-            candidate = datetime.fromtimestamp(raw_expiry / 1000, tz=timezone.utc)
+            candidate = datetime.fromtimestamp(raw_expiry / 1000, tz=UTC)
             if expires_at is None or candidate < expires_at:
                 expires_at = candidate
 

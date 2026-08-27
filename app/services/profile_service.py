@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, TypeVar
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any, TypeVar
 
 from app.config import Settings
 from app.linkedin.client import VoyagerClient
@@ -30,7 +31,6 @@ from app.linkedin.exceptions import (
     LinkedInError,
     NotConfiguredError,
     ParseError,
-    ProfileNotFoundError,
     ProfileUnavailableError,
     RateLimitedError,
 )
@@ -130,7 +130,7 @@ class ProfileService:
         duration_ms = int((time.perf_counter() - started) * 1000)
         meta = ScrapeMeta(
             source=source,  # type: ignore[arg-type]
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=datetime.now(UTC),
             duration_ms=duration_ms,
             cached=False,
             endpoints_succeeded=succeeded,

@@ -29,6 +29,9 @@ _HOST_RE = re.compile(r"^(?:[a-z0-9-]+\.)*linkedin\.com$", re.IGNORECASE)
 # and obviously-bogus input.
 _PUBLIC_ID_RE = re.compile(r"^[\w\-\.%]{2,120}$", re.UNICODE)
 
+# Path prefixes that introduce a member profile.
+_PROFILE_KINDS = {"in", "pub"}
+
 # Paths that live under /in/ but are not profiles.
 _RESERVED_SLUGS = {
     "edit",
@@ -93,8 +96,16 @@ def parse_profile_url(raw: str) -> ParsedProfileURL:
 
     segments = [s for s in parsed.path.split("/") if s]
 
-    # Locale-prefixed paths such as /en/in/foo or /pub/foo/1/2/3.
-    if segments and len(segments[0]) == 2 and segments[0].isalpha() and len(segments) > 1:
+    # Strip a locale prefix such as /en/in/foo — but only when the segment that
+    # follows is itself a profile kind. Without that guard, `/in/foo` looks like
+    # a locale prefix too, since "in" is a two-letter alphabetic string.
+    if (
+        len(segments) > 1
+        and len(segments[0]) == 2
+        and segments[0].isalpha()
+        and segments[0].lower() not in _PROFILE_KINDS
+        and segments[1].lower() in _PROFILE_KINDS
+    ):
         segments = segments[1:]
 
     if not segments:

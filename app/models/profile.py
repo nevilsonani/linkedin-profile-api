@@ -75,7 +75,7 @@ class Image(_Base):
     url: str | None = Field(None, description="Highest-resolution variant.")
     width: int | None = None
     height: int | None = None
-    variants: list["ImageVariant"] = Field(default_factory=list)
+    variants: list[ImageVariant] = Field(default_factory=list)
     expires_at: datetime | None = Field(
         None,
         description=(
@@ -267,12 +267,12 @@ class ContactInfo(_Base):
     """Only populated for profiles that expose contact details to your account."""
 
     email: str | None = None
-    phone_numbers: list["PhoneNumber"] = Field(default_factory=list)
+    phone_numbers: list[PhoneNumber] = Field(default_factory=list)
     twitter_handles: list[str] = Field(default_factory=list)
-    websites: list["Website"] = Field(default_factory=list)
+    websites: list[Website] = Field(default_factory=list)
     address: str | None = None
     birthday: DateParts | None = None
-    instant_messengers: list["InstantMessenger"] = Field(default_factory=list)
+    instant_messengers: list[InstantMessenger] = Field(default_factory=list)
 
 
 class PhoneNumber(_Base):

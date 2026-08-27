@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -224,7 +224,7 @@ app.include_router(health_routes.router)
 app.include_router(profile_routes.router)
 
 
-@app.get("/", include_in_schema=False)
+@app.get("/", include_in_schema=False, response_model=None)
 async def root() -> RedirectResponse | JSONResponse:
     if settings.enable_docs:
         return RedirectResponse(url="/docs")
