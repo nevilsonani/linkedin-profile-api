@@ -103,7 +103,7 @@ def _unmasked(value: Any) -> str | None:
     text = clean_str(value)
     if text is None:
         return None
-    if _MASKED_RE.match(text) or "***" in text:
+    if _MASKED_RE.match(text):
         return None
     return text
 
