@@ -208,14 +208,28 @@ starts coming back empty." So:
 - **`GET /api/v1/profile/raw`** returns unparsed upstream payloads, which is how
   you diagnose drift when a section does go empty.
 
-### Fallback path
+### What the public path actually returns
 
-If Voyager returns a security challenge or refuses a profile outright, the
-service fetches the rendered page and extracts the `schema.org/Person` JSON-LD
-block, falling back again to Open Graph meta tags. That yields materially less
-(no skills, certifications, languages, or dates) so it's clearly marked with
-`meta.source: "public_html"` and a warning. It is a degraded result, not a
-silent substitute.
+Reduced, but far from empty — a live scrape of `williamhgates` with **no
+working session cookie**:
+
+| Field | Value |
+|---|---|
+| `full_name` | Bill Gates |
+| `headline` | Chair of the Gates Foundation. Founder of Breakthrough Energy… |
+| `location` | Seattle, Washington, United States |
+| `profile_picture` | signed `media.licdn.com` URL, 200×200 |
+| `network_info.followers_count` | 40,594,854 |
+| `experience` | Gates Foundation |
+| `education` | Harvard University, 1973 – 1975 |
+
+Not available anonymously: skills, certifications, contact details, full role
+descriptions, and any field LinkedIn chose to redact. Each omission is
+explained in `meta.warnings` rather than left for you to guess at.
+
+If even the JSON-LD is missing, the parser degrades once more to Open Graph
+meta tags (`og:title` / `og:description` / `og:image`), which yield name,
+headline, and photo.
 
 ### Protecting the upstream account
 
