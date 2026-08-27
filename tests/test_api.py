@@ -24,6 +24,19 @@ def client():
         yield c
 
 
+def _block_public_hosts(public_id: str = "adalovelace") -> None:
+    """Make the anonymous public-page fallback fail on every host.
+
+    The service tries Voyager first and falls back to the public page, so a
+    test that wants to observe a *Voyager* error must close the second door
+    too — otherwise the fallback quietly succeeds and the error never surfaces.
+    """
+    for host in ("www", "in", "uk", "ca"):
+        respx.get(f"https://{host}.linkedin.com/in/{public_id}").mock(
+            return_value=httpx.Response(999, text="anti-scraping")
+        )
+
+
 def _mock_all_endpoints(mock: respx.MockRouter, public_id: str = "adalovelace") -> None:
     mock.get(f"{VOYAGER}/identity/profiles/{public_id}/profileView").mock(
         return_value=httpx.Response(200, json=fixtures.PROFILE_VIEW)
@@ -246,20 +259,41 @@ def test_challenge_falls_back_to_public_html(client: TestClient) -> None:
     body = resp.json()
     assert body["meta"]["source"] == "public_html"
     assert body["data"]["full_name"] == "Ada Lovelace"
-    assert any("Voyager API unavailable" in w for w in body["meta"]["warnings"])
+    assert any(
+        "authenticated Voyager API was unavailable" in w
+        for w in body["meta"]["warnings"]
+    )
 
 
 @respx.mock
-def test_authwall_after_challenge_is_an_error(client: TestClient) -> None:
+def test_both_paths_failing_names_both_failures(client: TestClient) -> None:
+    """When Voyager *and* the public page fail, the error must describe both.
+
+    Reporting only one is actively misleading: a challenged session and a
+    profile LinkedIn won't serve anonymously call for different responses, and
+    the operator can only act on the first.
+    """
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(403, text="captcha-internal")
     )
-    respx.get("https://www.linkedin.com/in/adalovelace").mock(
-        return_value=httpx.Response(200, text="<html>authwall Join LinkedIn to view</html>")
-    )
+    for host in ("www", "in", "uk", "ca"):
+        respx.get(f"https://{host}.linkedin.com/in/adalovelace").mock(
+            return_value=httpx.Response(
+                200, text="<html>authwall Join LinkedIn to view</html>"
+            )
+        )
+
     resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
-    assert resp.status_code == 403
-    assert resp.json()["error"]["code"] == "PROFILE_UNAVAILABLE"
+
+    # The Voyager error's type is preserved, so its status still signals that
+    # the *server's* session needs attention.
+    assert resp.status_code == 503
+
+    error = resp.json()["error"]
+    assert error["code"] == "LINKEDIN_CHALLENGE"
+    assert "Authenticated API:" in error["message"]
+    assert "Public page:" in error["message"]
+    assert "publicly" in (error["hint"] or "") or "signed-in" in (error["hint"] or "")
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +313,7 @@ def test_not_found(client: TestClient) -> None:
 
 @respx.mock
 def test_expired_session_surfaces_as_503(client: TestClient) -> None:
+    _block_public_hosts()
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(302, headers={"location": "/uas/login"})
     )
@@ -297,6 +332,7 @@ def test_self_redirect_is_reported_as_a_soft_block(client: TestClient) -> None:
     know to refresh the cookie or check TLS impersonation.
     """
     url = f"{VOYAGER}/identity/profiles/adalovelace/profileView"
+    _block_public_hosts()
     respx.get(url).mock(return_value=httpx.Response(302, headers={"location": url}))
 
     resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
@@ -313,6 +349,7 @@ def test_redirect_elsewhere_is_still_a_generic_upstream_error(
     client: TestClient,
 ) -> None:
     """A 302 to an unrelated path is not the soft block, and must not claim to be."""
+    _block_public_hosts()
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(302, headers={"location": "/some/other/path"})
     )
@@ -322,6 +359,7 @@ def test_redirect_elsewhere_is_still_a_generic_upstream_error(
 
 @respx.mock
 def test_rate_limited_upstream(client: TestClient) -> None:
+    _block_public_hosts()
     respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
         return_value=httpx.Response(429)
     )

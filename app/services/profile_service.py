@@ -167,9 +167,26 @@ class ProfileService:
                 succeeded.append("publicHtml")
                 source = "public_html"
             except LinkedInError as public_error:
-                # Both paths failed. Report whichever error is more actionable:
-                # a dead session is something the operator can fix.
-                raise (voyager_error or public_error) from public_error
+                if voyager_error is None:
+                    raise
+                # Both paths failed. Keep the Voyager error's type — and so its
+                # status code — because that is the one an operator can act on
+                # (a stale cookie is fixable; a profile LinkedIn won't serve
+                # anonymously is not). But name both failures in the message,
+                # since reporting only the cookie would hide that the profile
+                # may simply not be publicly viewable.
+                raise type(voyager_error)(
+                    f"Could not retrieve '{parsed.public_id}' by either route. "
+                    f"Authenticated API: {voyager_error.code} — "
+                    f"{voyager_error.message} "
+                    f"Public page: {public_error.code} — {public_error.message}",
+                    hint=(
+                        f"{voyager_error.hint or ''} "
+                        "Separately, the public page did not yield this profile: "
+                        "some profiles are visible only to signed-in members, and "
+                        "LinkedIn rate-limits anonymous page requests."
+                    ).strip(),
+                ) from public_error
 
         duration_ms = int((time.perf_counter() - started) * 1000)
         meta = ScrapeMeta(

@@ -170,9 +170,16 @@ def find_person(blocks: list[Any]) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
+# Wide enough to accept any date a profile could legitimately carry, narrow
+# enough to reject a millisecond timestamp mistaken for a year.
+_MIN_YEAR, _MAX_YEAR = 1800, 2100
+
+
 def _date_from_schema(value: Any) -> DateParts | None:
     """schema.org dates arrive as a bare year int, or an ISO-ish string."""
-    if isinstance(value, int) and 1900 <= value <= 2100:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and _MIN_YEAR <= value <= _MAX_YEAR:
         return DateParts(year=value, text=str(value))
 
     text = clean_str(value)

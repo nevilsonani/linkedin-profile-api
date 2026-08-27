@@ -370,7 +370,7 @@ def test_dash_flags_on_garbage() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_public_html_jsonld() -> None:
+def _public() -> tuple:
     warnings: list[str] = []
     profile = parse_public_html(
         fixtures.PUBLIC_HTML,
@@ -378,15 +378,91 @@ def test_public_html_jsonld() -> None:
         profile_url="https://www.linkedin.com/in/adalovelace",
         warnings=warnings,
     )
+    return profile, warnings
+
+
+def test_public_html_identity() -> None:
+    profile, warnings = _public()
     assert profile.full_name == "Ada Lovelace"
     assert profile.first_name == "Ada"
-    assert profile.headline == "Principal Analyst"
-    assert profile.location is not None and profile.location.city == "London"
-    assert profile.profile_picture is not None
-    assert profile.experience[0].company_name == "Analytical Engine Project"
-    assert profile.education[0].school_name == "Private Tutelage"
-    # The caller must be told this is a degraded result.
+    assert profile.last_name == "Lovelace"
+    # `description` is the headline on the public page; `jobTitle` is the
+    # (often redacted) list of position titles.
+    assert profile.headline == "Mathematician and first computer programmer."
+    assert profile.about == "Mathematician and first computer programmer."
+    # The caller must be told this is a reduced result.
     assert any("public page" in w for w in warnings)
+
+
+def test_public_html_location_and_image() -> None:
+    profile, _ = _public()
+    assert profile.location is not None
+    assert profile.location.city == "London"
+    assert profile.location.country == "United Kingdom"
+    assert profile.location.country_code == "gb"
+
+    assert profile.profile_picture is not None
+    # Dimensions are recoverable from the CDN path segment.
+    assert profile.profile_picture.width == 200
+    assert profile.profile_picture.height == 200
+
+
+def test_public_html_experience_with_dates() -> None:
+    profile, _ = _public()
+    assert len(profile.experience) == 2
+
+    first = profile.experience[0]
+    assert first.company_name == "Analytical Engine Project"
+    assert first.title == "Principal Analyst"
+    assert first.company is not None
+    assert first.company.universal_name == "analytical-engine"
+    assert first.date_range is not None
+    assert first.date_range.start is not None and first.date_range.start.year == 1842
+    assert first.date_range.is_current is True
+
+    second = profile.experience[1]
+    assert second.date_range is not None
+    assert second.date_range.end is not None and second.date_range.end.year == 1842
+
+
+def test_redacted_values_become_null_never_asterisks() -> None:
+    """Emitting '********' would be worse than emitting nothing.
+
+    A consumer cannot distinguish LinkedIn's redaction marker from a real
+    value, so masked fields must come back as null — and the caller must be
+    told that data was withheld rather than simply absent.
+    """
+    profile, warnings = _public()
+
+    titles = [p.title for p in profile.experience]
+    companies = [p.company_name for p in profile.experience]
+    for value in titles + companies:
+        assert value is None or "*" not in value
+
+    assert profile.experience[1].title is None
+    assert profile.experience[1].company_name is None
+
+    assert any("redacted" in w and "job title" in w for w in warnings)
+    assert any("redacted" in w and "employer" in w for w in warnings)
+
+
+def test_public_html_education_languages_honors_followers() -> None:
+    profile, _ = _public()
+
+    edu = profile.education[0]
+    assert edu.school_name == "Private Tutelage"
+    assert edu.date_range is not None
+    assert edu.date_range.start is not None and edu.date_range.start.year == 1832
+    assert edu.date_range.end is not None and edu.date_range.end.year == 1840
+
+    assert [lang.name for lang in profile.languages] == ["English", "French"]
+    assert profile.honors[0].title == "Ada Lovelace Day namesake"
+
+    assert profile.network_info is not None
+    assert profile.network_info.followers_count == 12345
+
+    # "Top Voice" in disambiguatingDescription marks an influencer.
+    assert profile.is_influencer is True
 
 
 def test_public_html_falls_back_to_og_tags() -> None:

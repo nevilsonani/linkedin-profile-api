@@ -262,6 +262,11 @@ DASH_PROFILE: dict[str, Any] = {
 }
 
 
+# Mirrors the real shape of LinkedIn's public JSON-LD, captured from a live
+# profile: `description` carries the headline, `jobTitle` is a parallel array to
+# `worksFor`, employment dates hang off an `OrganizationRole` under `member`,
+# the follower count lives in `interactionStatistic`, and — critically —
+# LinkedIn redacts some values with asterisks for anonymous viewers.
 PUBLIC_HTML = """
 <html><head>
 <meta property="og:title" content="Ada Lovelace - Principal Analyst - Analytical Engine | LinkedIn">
@@ -270,21 +275,50 @@ PUBLIC_HTML = """
 {
   "@context": "http://schema.org",
   "@graph": [
+    {"@type": "WebPage", "url": "https://www.linkedin.com/in/adalovelace"},
     {
       "@type": "Person",
       "name": "Ada Lovelace",
-      "givenName": "Ada",
-      "familyName": "Lovelace",
-      "jobTitle": "Principal Analyst",
       "description": "Mathematician and first computer programmer.",
-      "image": {"@type": "ImageObject", "contentUrl": "https://media.licdn.com/photo.jpg"},
+      "disambiguatingDescription": "Creator, Top Voice",
+      "image": {"@type": "ImageObject",
+                "contentUrl": "https://media.licdn.com/dms/image/v2/ABC/profile-displayphoto-shrink_200_200/0/123?e=1&v=beta&t=x"},
       "address": {
         "@type": "PostalAddress",
-        "addressLocality": "London",
+        "addressLocality": "London, England, United Kingdom",
         "addressCountry": "GB"
       },
-      "worksFor": [{"@type": "Organization", "name": "Analytical Engine Project"}],
-      "alumniOf": [{"@type": "Organization", "name": "Private Tutelage"}]
+      "jobTitle": ["Principal Analyst", "********"],
+      "worksFor": [
+        {
+          "@type": "Organization",
+          "name": "Analytical Engine Project",
+          "url": "https://www.linkedin.com/company/analytical-engine",
+          "member": {"@type": "OrganizationRole", "startDate": 1842}
+        },
+        {
+          "@type": "Organization",
+          "name": "************ ****** ",
+          "member": {"@type": "OrganizationRole", "startDate": 1840, "endDate": 1842}
+        }
+      ],
+      "alumniOf": [
+        {
+          "@type": "EducationalOrganization",
+          "name": "Private Tutelage",
+          "url": "https://www.linkedin.com/school/private-tutelage/",
+          "member": {"@type": "OrganizationRole", "startDate": 1832, "endDate": 1840}
+        }
+      ],
+      "knowsLanguage": [{"@type": "Language", "name": "English"},
+                        {"@type": "Language", "name": "French"}],
+      "awards": ["Ada Lovelace Day namesake"],
+      "interactionStatistic": {
+        "@type": "InteractionCounter",
+        "interactionType": "https://schema.org/FollowAction",
+        "name": "Follows",
+        "userInteractionCount": 12345
+      }
     }
   ]
 }
