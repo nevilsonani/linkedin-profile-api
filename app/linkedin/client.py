@@ -366,10 +366,20 @@ class VoyagerClient:
     ) -> Any:
         """Issue one request on whichever transport is active."""
         if self._impersonator is not None:
+            # curl_cffi synthesises a complete, self-consistent header set for
+            # the impersonated browser — including a User-Agent that matches the
+            # TLS fingerprint it presents. Overriding it reintroduces exactly
+            # the contradiction impersonation exists to remove (verified: with
+            # our own User-Agent the request is soft-blocked; without it the
+            # identical request succeeds), so let curl_cffi own that header.
+            impersonated = {
+                k: v for k, v in headers.items() if k.lower() != "user-agent"
+            }
+            impersonated["cookie"] = self._cookie_header()
             return await self._impersonator.request(
                 method,
                 url,
-                headers={**headers, "cookie": self._cookie_header()},
+                headers=impersonated,
                 params=params,
                 impersonate=self._settings.impersonation_target,
                 timeout=self._settings.request_timeout_seconds,
