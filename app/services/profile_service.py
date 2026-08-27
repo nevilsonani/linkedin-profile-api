@@ -2,17 +2,32 @@
 
 Strategy
 --------
-1. Serve from cache when possible.
-2. Call ``profileView`` — the one required call. If it fails hard (404, auth,
-   challenge) the whole request fails with that error.
-3. Fan out the *optional* enrichment calls concurrently: contact info, network
+Two extraction paths exist, with very different reliability profiles:
+
+*Voyager* (authenticated) returns far richer data — skills, certifications,
+contact details, full role descriptions. But it needs a ``li_at`` cookie that
+LinkedIn rotates aggressively, and most of its endpoints now answer ``410
+Gone`` after LinkedIn retired the legacy REST surface.
+
+*Public page* (anonymous) returns less, and LinkedIn redacts some fields for
+logged-out viewers. But it needs no session, so nothing can expire, and it
+works from any host.
+
+So the order is: cache, then Voyager if a session is configured, then the
+public page. A request fails only when *both* paths fail — and the error
+reported is Voyager's, since a stale cookie is the actionable problem.
+
+Within the Voyager path:
+
+1. Fetch the profile document. If that fails, the whole path fails.
+2. Fan out the *optional* enrichment calls concurrently: contact info, network
    info, the full skill list, and the dash badges. Any of these may legitimately
    403 (privacy settings) — each failure becomes a warning, never an error.
-4. Merge the enrichments over the base profile.
+3. Merge the enrichments over the base profile.
 
-If step 2 fails with a *recoverable* error (challenge / unavailable), fall back
-to scraping the rendered HTML page, which yields a reduced profile rather than
-nothing.
+``meta.source`` records which path produced the payload, and ``meta.warnings``
+explains anything withheld, so a caller can always tell thin data from missing
+data.
 """
 
 from __future__ import annotations
@@ -27,10 +42,10 @@ from app.config import Settings
 from app.linkedin.client import VoyagerClient
 from app.linkedin.exceptions import (
     AuthenticationError,
-    ChallengeError,
     LinkedInError,
     NotConfiguredError,
     ParseError,
+    ProfileNotFoundError,
     ProfileUnavailableError,
     RateLimitedError,
 )
@@ -51,8 +66,6 @@ log = get_logger(__name__)
 
 T = TypeVar("T")
 
-# Errors where dropping to HTML scraping might still produce something useful.
-_HTML_FALLBACK_ERRORS = (ChallengeError, ProfileUnavailableError)
 
 
 class ScrapeResult:
@@ -102,30 +115,61 @@ class ProfileService:
         failed: list[str] = []
         warnings: list[str] = []
 
-        try:
-            result = await self._scrape_voyager(
-                parsed,
-                include_contact_info=include_contact_info,
-                include_network_info=include_network_info,
-                include_skills=include_skills,
-                succeeded=succeeded,
-                failed=failed,
-                warnings=warnings,
-            )
-            source = "voyager"
-        except _HTML_FALLBACK_ERRORS as exc:
-            log.warning(
-                "voyager_failed_trying_html",
-                public_id=parsed.public_id,
-                error=exc.__class__.__name__,
-            )
-            failed.append("profileView")
+        # Strategy order. Voyager yields far richer data when it works, but it
+        # depends on a session cookie that expires constantly *and* most of its
+        # endpoints were retired (410 Gone). The public page yields less but
+        # needs no session at all, so it is the dependable floor: trying
+        # Voyager first and falling back means a request only fails when both
+        # do.
+        voyager_error: LinkedInError | None = None
+        result = None
+        source = "public_html"
+
+        if self._settings.has_linkedin_session:
+            try:
+                result = await self._scrape_voyager(
+                    parsed,
+                    include_contact_info=include_contact_info,
+                    include_network_info=include_network_info,
+                    include_skills=include_skills,
+                    succeeded=succeeded,
+                    failed=failed,
+                    warnings=warnings,
+                )
+                source = "voyager"
+            except ProfileNotFoundError:
+                # Authoritative — don't waste a public fetch on a missing profile.
+                raise
+            except LinkedInError as exc:
+                voyager_error = exc
+                failed.append("voyager")
+                log.warning(
+                    "voyager_failed_trying_public",
+                    public_id=parsed.public_id,
+                    error=exc.__class__.__name__,
+                    code=exc.code,
+                )
+        else:
             warnings.append(
-                f"Voyager API unavailable ({exc.code}); used the public page instead."
+                "No LinkedIn session is configured, so only public profile data "
+                "was retrieved."
             )
-            result = await self._scrape_html(parsed, warnings=warnings)
-            succeeded.append("publicHtml")
-            source = "public_html"
+
+        if result is None:
+            if voyager_error is not None:
+                warnings.append(
+                    f"The authenticated Voyager API was unavailable "
+                    f"({voyager_error.code}), so the public page was used "
+                    "instead; it exposes fewer fields."
+                )
+            try:
+                result = await self._scrape_html(parsed, warnings=warnings)
+                succeeded.append("publicHtml")
+                source = "public_html"
+            except LinkedInError as public_error:
+                # Both paths failed. Report whichever error is more actionable:
+                # a dead session is something the operator can fix.
+                raise (voyager_error or public_error) from public_error
 
         duration_ms = int((time.perf_counter() - started) * 1000)
         meta = ScrapeMeta(

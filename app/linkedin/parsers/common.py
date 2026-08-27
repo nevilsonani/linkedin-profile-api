@@ -86,10 +86,10 @@ def parse_date(raw: Any) -> DateParts | None:
     if year is None and month is None and day is None:
         return None
 
-    return DateParts(year=year, month=month, day=day, text=_render_date(year, month, day))
+    return DateParts(year=year, month=month, day=day, text=render_date(year, month, day))
 
 
-def _render_date(year: int | None, month: int | None, day: int | None) -> str | None:
+def render_date(year: int | None, month: int | None, day: int | None) -> str | None:
     if year and month and day:
         return f"{_MONTHS[month]} {day}, {year}"
     if year and month:
@@ -122,7 +122,7 @@ def parse_date_range(time_period: Any) -> DateRange | None:
         return None
 
     is_current = end is None
-    duration = _duration_months(start, end)
+    duration = duration_months(start, end)
 
     start_text = start.text if start else None
     end_text = end.text if end else ("Present" if start else None)
@@ -140,7 +140,7 @@ def parse_date_range(time_period: Any) -> DateRange | None:
     )
 
 
-def _duration_months(start: DateParts | None, end: DateParts | None) -> int | None:
+def duration_months(start: DateParts | None, end: DateParts | None) -> int | None:
     if start is None:
         return None
     start_idx = _month_index(start)

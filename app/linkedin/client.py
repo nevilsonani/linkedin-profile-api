@@ -78,6 +78,7 @@ from app.config import Settings
 from app.linkedin.exceptions import (
     AuthenticationError,
     ChallengeError,
+    LinkedInError,
     NotConfiguredError,
     ProfileNotFoundError,
     ProfileUnavailableError,
@@ -90,6 +91,10 @@ log = get_logger(__name__)
 
 VOYAGER_BASE = "https://www.linkedin.com/voyager/api"
 WWW_BASE = "https://www.linkedin.com"
+
+# LinkedIn rate-limits per hostname, so a profile refused by one host is often
+# served immediately by another. Tried in order.
+PUBLIC_HOSTS = ("www", "in", "uk", "ca")
 
 # Markers that appear in an HTML body when LinkedIn interposes a checkpoint
 # instead of answering the API call.
@@ -531,21 +536,84 @@ class VoyagerClient:
         )
 
     async def get_public_html(self, public_id: str) -> str:
-        """Fetch the rendered profile page.
+        """Fetch the rendered public profile page, **without a session cookie**.
 
-        Used as a fallback when Voyager refuses. With a valid session this
-        returns the full SPA shell with embedded JSON; without one, LinkedIn
-        serves a reduced public page that still carries JSON-LD.
+        This is the primary extraction path now that the legacy Voyager REST
+        endpoints answer 410. Two behaviours here are deliberate and were
+        established empirically:
+
+        *Anonymous.* No cookie is sent. LinkedIn serves the SEO render of a
+        public profile to logged-out clients, which carries the ``schema.org``
+        JSON-LD we want. Because nothing is authenticated, there is no session
+        to expire — the failure mode that makes cookie-based scraping so
+        brittle simply does not apply.
+
+        *Host rotation.* LinkedIn rate-limits per hostname, answering ``999``
+        (its bespoke "go away" status) on one host while happily serving the
+        same profile from another. ``satyanadella`` was observed returning 999
+        on ``www`` and 200 on ``in`` within the same second, so each host is
+        tried in turn before giving up.
         """
-        if self._client is None:
+        if self._client is None and self._impersonator is None:
             await self.start()
-        resp = await self._request(
-            "GET",
-            f"{WWW_BASE}/in/{public_id}",
-            context=f"publicHtml({public_id})",
-            headers=self._html_headers(),
+
+        last_error: LinkedInError | None = None
+
+        for host in PUBLIC_HOSTS:
+            url = f"https://{host}.linkedin.com/in/{public_id}"
+            try:
+                resp = await self._send_anonymous(url)
+            except Exception as exc:  # noqa: BLE001 - try the next host
+                last_error = UpstreamError(f"Network error fetching {url}: {exc}")
+                log.info("public_host_failed", host=host, error=str(exc)[:120])
+                continue
+
+            if resp.status_code == 200 and resp.text:
+                log.info("public_html_ok", host=host, bytes=len(resp.text))
+                return resp.text
+
+            log.info("public_host_rejected", host=host, status=resp.status_code)
+            if resp.status_code == 999:
+                last_error = RateLimitedError(
+                    f"LinkedIn returned 999 (anti-scraping) for {host} on "
+                    f"'{public_id}'."
+                )
+            elif resp.status_code == 404:
+                # Authoritative: no such profile. No other host will differ.
+                raise ProfileNotFoundError(
+                    f"LinkedIn returned 404 for profile '{public_id}'."
+                )
+            else:
+                last_error = UpstreamError(
+                    f"{host}.linkedin.com returned HTTP {resp.status_code} "
+                    f"for '{public_id}'."
+                )
+
+        raise last_error or UpstreamError(
+            f"Every LinkedIn host refused the public page for '{public_id}'."
         )
-        return resp.text
+
+    async def _send_anonymous(self, url: str) -> Any:
+        """GET a page with browser headers and **no** cookies attached."""
+        headers = self._html_headers()
+
+        if self._impersonator is not None:
+            # curl_cffi owns User-Agent so it stays consistent with the TLS
+            # fingerprint it presents; see _send() for the full rationale.
+            headers = {k: v for k, v in headers.items() if k.lower() != "user-agent"}
+            return await self._impersonator.request(
+                "GET",
+                url,
+                headers=headers,
+                impersonate=self._settings.impersonation_target,
+                timeout=self._settings.request_timeout_seconds,
+                allow_redirects=True,
+            )
+
+        assert self._client is not None
+        return await self._client.request(
+            "GET", url, headers=headers, cookies={}, follow_redirects=True
+        )
 
     async def healthcheck(self) -> dict[str, Any]:
         """Verify the configured session is still alive.
