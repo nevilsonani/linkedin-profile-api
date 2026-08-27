@@ -266,6 +266,31 @@ def test_challenge_falls_back_to_public_html(client: TestClient) -> None:
 
 
 @respx.mock
+def test_public_throttling_is_reported_as_retryable_not_as_auth_failure(
+    client: TestClient,
+) -> None:
+    """A throttled public path must surface as 429, even when Voyager also failed.
+
+    Reporting the Voyager auth error instead would send the caller chasing a
+    server-side credential they cannot fix, and hide that simply retrying works.
+    """
+    respx.get(f"{VOYAGER}/identity/profiles/adalovelace/profileView").mock(
+        return_value=httpx.Response(302, headers={"location": "/uas/login"})
+    )
+    _block_public_hosts()  # every host answers 999
+
+    resp = client.get("/api/v1/profile?url=adalovelace", headers=AUTH)
+    assert resp.status_code == 429
+
+    error = resp.json()["error"]
+    assert error["code"] == "LINKEDIN_RATE_LIMITED"
+    assert "throttling" in error["message"]
+    assert "retry" in (error["hint"] or "").lower()
+    # The Voyager failure is still mentioned, just not as the headline.
+    assert "LINKEDIN_AUTH_FAILED" in error["message"]
+
+
+@respx.mock
 def test_both_paths_failing_names_both_failures(client: TestClient) -> None:
     """When Voyager *and* the public page fail, the error must describe both.
 

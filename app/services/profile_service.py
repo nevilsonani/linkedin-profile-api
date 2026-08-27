@@ -166,15 +166,42 @@ class ProfileService:
                 result = await self._scrape_html(parsed, warnings=warnings)
                 succeeded.append("publicHtml")
                 source = "public_html"
+            except RateLimitedError as public_error:
+                # LinkedIn throttled the anonymous path (HTTP 999). That is
+                # transient and retryable, which makes it the more useful thing
+                # to tell a caller — they can just try again. Reporting the
+                # Voyager auth failure instead would send them chasing a server
+                # credential they cannot fix and hide that a retry would work.
+                if voyager_error is not None:
+                    log.info(
+                        "reporting_public_rate_limit_over_voyager_error",
+                        voyager_code=voyager_error.code,
+                    )
+                raise RateLimitedError(
+                    f"LinkedIn is currently throttling anonymous requests for "
+                    f"'{parsed.public_id}' (tried every regional host)."
+                    + (
+                        f" The authenticated path was also unavailable "
+                        f"({voyager_error.code})."
+                        if voyager_error is not None
+                        else ""
+                    ),
+                    hint=(
+                        "This is transient — retry in a few seconds. LinkedIn "
+                        "throttles anonymous page requests per hostname, and "
+                        "datacenter IPs are throttled harder than residential "
+                        "ones."
+                    ),
+                ) from public_error
             except LinkedInError as public_error:
                 if voyager_error is None:
                     raise
-                # Both paths failed. Keep the Voyager error's type — and so its
-                # status code — because that is the one an operator can act on
-                # (a stale cookie is fixable; a profile LinkedIn won't serve
-                # anonymously is not). But name both failures in the message,
-                # since reporting only the cookie would hide that the profile
-                # may simply not be publicly viewable.
+                # Both paths failed for non-transient reasons. Keep the Voyager
+                # error's type — and so its status code — because that is the
+                # one an operator can act on (a stale cookie is fixable; a
+                # profile LinkedIn won't serve anonymously is not). But name
+                # both failures, since reporting only the cookie would hide
+                # that the profile may simply not be publicly viewable.
                 raise type(voyager_error)(
                     f"Could not retrieve '{parsed.public_id}' by either route. "
                     f"Authenticated API: {voyager_error.code} — "

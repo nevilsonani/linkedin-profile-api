@@ -93,8 +93,10 @@ VOYAGER_BASE = "https://www.linkedin.com/voyager/api"
 WWW_BASE = "https://www.linkedin.com"
 
 # LinkedIn rate-limits per hostname, so a profile refused by one host is often
-# served immediately by another. Tried in order.
-PUBLIC_HOSTS = ("www", "in", "uk", "ca")
+# served immediately by another. Tried in order. The list is deliberately long
+# because datacenter IPs (any hosted deployment) get refused far more often
+# than residential ones, and each additional host is another chance.
+PUBLIC_HOSTS = ("www", "in", "uk", "ca", "au", "sg", "ie", "nl")
 
 # Markers that appear in an HTML body when LinkedIn interposes a checkpoint
 # instead of answering the API call.
